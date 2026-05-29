@@ -1,61 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./clinica.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+from schemas import FuncionarioCreate, FuncionarioResponse, PacienteCreate, PacienteResponse
 
-
-class FuncionarioDB(Base):
-    __tablename__ = "funcionarios"
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, index=True)
-    cargo = Column(String)
-    ativo = Column(Boolean, default=True)
-
-class PacienteDB(Base):
-    __tablename__ = "pacientes"
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, index=True)
-    idade = Column(Integer)
-    telefone = Column(String, nullable=True)
-
-Base.metadata.create_all(bind=engine)
-
-
-class FuncionarioCreate(BaseModel):
-    nome: str
-    cargo: str
-    ativo: bool = True
-
-class FuncionarioResponse(FuncionarioCreate):
-    id: int
-    class Config:
-        from_attributes = True
-
-class PacienteCreate(BaseModel):
-    nome: str
-    idade: int
-    telefone: Optional[str] = None
-
-class PacienteResponse(PacienteCreate):
-    id: int
-    class Config:
-        from_attributes = True
-
-
-app = FastAPI(title="API Clínica FESF-SUS")
+app = FastAPI(title="Sistema de Gestão Clínica FESF-SUS")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,46 +18,97 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
+db_funcionarios = []
+db_pacientes = []
+id_funcionario_counter = 1
+id_paciente_counter = 1
+
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    if token == "admin-token-secreto":
+        return {"username": "admin", "role": "admin"}
+    
+    for f in db_funcionarios:
+        if f["username"] == token:
+            return {"username": f["username"], "role": "funcionario", "nome": f["nome"]}
+            
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token inválido ou expirado",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+def verify_admin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Apenas o Administrador pode realizar esta ação."
+        )
+    return current_user
+
 
 
 @app.post("/token")
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username != "admin" or form_data.password != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return {"access_token": form_data.username, "token_type": "bearer"}
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    if form_data.username == "admin" and form_data.password == "admin":
+        return {"access_token": "admin-token-secreto", "token_type": "bearer"}
+    
+    for f in db_funcionarios:
+        if f["username"] == form_data.username and f["password"] == form_data.password:
+            return {"access_token": f["username"], "token_type": "bearer"}
+            
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Usuário ou senha incorretos"
+    )
 
+@app.post("/funcionarios/", response_model=FuncionarioResponse, status_code=status.HTTP_201_CREATED)
+def cadastrar_funcionario(funcionario: FuncionarioCreate, admin: dict = Depends(verify_admin)):
+    global id_funcionario_counter
+    
+    for f in db_funcionarios:
+        if f["username"] == funcionario.username:
+            raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
 
-@app.post("/funcionarios/", response_model=FuncionarioResponse)
-def criar_funcionario(funcionario: FuncionarioCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    db_funcionario = FuncionarioDB(**funcionario.model_dump())
-    db.add(db_funcionario)
-    db.commit()
-    db.refresh(db_funcionario)
-    return db_funcionario
+    novo_funcionario = {
+        "id": id_funcionario_counter,
+        "nome": funcionario.nome,
+        "data_nascimento": funcionario.data_nascimento,
+        "cargo": funcionario.cargo,
+        "username": funcionario.username,
+        "password": funcionario.password,
+        "ativo": True
+    }
+    db_funcionarios.append(novo_funcionario)
+    id_funcionario_counter += 1
+    return novo_funcionario
 
 @app.get("/funcionarios/", response_model=List[FuncionarioResponse])
-def listar_funcionarios(db: Session = Depends(get_db)):
-    return db.query(FuncionarioDB).all()
+def listar_funcionarios(current_user: dict = Depends(get_current_user)):
+    return db_funcionarios
 
-
-@app.post("/pacientes/", response_model=PacienteResponse)
-def criar_paciente(paciente: PacienteCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    db_paciente = PacienteDB(**paciente.model_dump())
-    db.add(db_paciente)
-    db.commit()
-    db.refresh(db_paciente)
-    return db_paciente
+@app.post("/pacientes/", response_model=PacienteResponse, status_code=status.HTTP_201_CREATED)
+def cadastrar_paciente(paciente: PacienteCreate, current_user: dict = Depends(get_current_user)):
+    global id_paciente_counter
+    
+    novo_paciente = {
+        "id": id_paciente_counter,
+        "nome": paciente.nome,
+        "data_nascimento": paciente.data_nascimento,
+        "sintomas": paciente.sintomas,
+        "nivel_sintoma": paciente.nivel_sintoma,
+        "cadastrado_por": current_user["username"]
+    }
+    db_pacientes.append(novo_paciente)
+    id_paciente_counter += 1
+    return novo_paciente
 
 @app.get("/pacientes/", response_model=List[PacienteResponse])
-def listar_pacientes(db: Session = Depends(get_db)):
-    return db.query(PacienteDB).all()
+def listar_pacientes(current_user: dict = Depends(get_current_user)):
+    return db_pacientes
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
