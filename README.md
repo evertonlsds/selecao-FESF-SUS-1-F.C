@@ -1,4 +1,4 @@
-"""# Seleção FESF-SUS – 1 F.C | Backend API
+Seleção FESF-SUS – 1 F.C | Backend API
 
 Esta é uma API RESTful desenvolvida como parte do processo de seleção FESF-SUS (Formação Complementar - Item 01 e Item 02 do Barema). A aplicação consiste em um sistema de CRUD (Create, Read, Update, Delete) para o gerenciamento de dados de **Funcionários** e **Pacientes** de uma clínica médica.
 
