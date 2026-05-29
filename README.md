@@ -1,32 +1,55 @@
-Seleção FESF-SUS – 1 F.C | Backend API
+Sistema de Gestão Clínica e Triagem Acolhedora – FESF-SUS
 
-Esta é uma API RESTful desenvolvida como parte do processo de seleção FESF-SUS (Formação Complementar - Item 01 e Item 02 do Barema). A aplicação consiste em um sistema de CRUD (Create, Read, Update, Delete) para o gerenciamento de dados de **Funcionários** e **Pacientes** de uma clínica médica.
-
-O projeto foi construído seguindo as melhores práticas de desenvolvimento backend, utilizando padrões de mercado para persistência de dados, validação de schemas, conteinerização isolada e segurança de rotas através de autenticação robusta.
+Este repositório contém a solução completa para o **Item 01** e **Item 02** do Barema de Seleção. Trata-se de um sistema Fullstack moderno voltado para a gestão de equipes clínicas e triagem de pacientes com classificação de risco, separação de responsabilidades e controle de acesso baseado em papéis.
 
 ---
 
 ## 🚀 Tecnologias Utilizadas
 
-* **Linguagem:** [Python 3.10](https://www.python.org/)
-* **Framework Web:** [FastAPI](https://fastapi.tiangolo.com/) (Alta performance, suporte nativo a tipagem e documentação automática)
-* **ORM / Persistência:** [SQLAlchemy](https://www.sqlalchemy.org/) (Mapeamento Objeto-Relacional para abstração de banco de dados)
-* **Banco de Dados:** [SQLite](https://www.sqlite.org/) (Configurado de forma local e integrada para fins de avaliação ágil)
-* **Validação de Dados:** [Pydantic v2](https://docs.pydantic.dev/) (Garantia de integridade dos payloads de entrada e saída)
-* **Segurança:** OAuth2 com suporte a Bearer Tokens (`python-jose` e `passlib`)
-* **Infraestrutura / Containerização:** [Docker](https://www.docker.com/) e [Docker Compose](https://docs.docker.com/compose/)
+### Backend (API)
+* **FastAPI (Python):** Framework de alto desempenho focado em tipagem e rapidez de desenvolvimento.
+* **Pydantic:** Modelagem e validação de dados rigorosa com schemas separados (`schemas.py`).
+* **OAuth2 + Bearer Tokens:** Fluxo seguro de autenticação para proteção de endpoints.
+
+### Frontend (Interface)
+* **Next.js (TypeScript):** Framework React com renderização moderna e tipagem estática forte para prevenção de erros.
+* **Zustand:** Gerenciamento de estado global leve e performático para controle de sessão do usuário.
+* **Tailwind CSS:** Estilização utilitária seguindo padrões visuais limpos, minimalistas e responsivos (Design Clean/SaaS corporativo).
+* **Lucide React:** Conjunto de ícones vetoriais modernos e minimalistas.
+
+### DevOps & Infraestrutura
+* **Docker & Docker Compose:** Containerização completa do ambiente de backend e banco de dados, garantindo execução idêntica em qualquer máquina.
 
 ---
 
-## 🔒 Arquitetura & Segurança (OAuth2)
+## 👥 Fluxo de Funcionamento & Permissões (RBAC)
 
-Em total conformidade com os requisitos do certame, a API conta com uma camada de segurança baseada no protocolo **OAuth2 (Password Flow)**. 
+O sistema implementa uma política estrita de controle de acessos para garantir a segurança dos dados de saúde:
 
-* **Rotas de Leitura (`GET`):** São públicas para facilitar a listagem de registros na interface.
-* **Rotas de Escrita (`POST`):** São estritamente protegidas. O sistema exige o envio de um Bearer Token válido no cabeçalho da requisição (`Authorization: Bearer <token>`) para permitir a persistência de novos dados.
+1.  **Administrador Master (`admin`):**
+    * Possui acesso exclusivo à aba **Equipe**.
+    * Responsável por cadastrar novos funcionários do sistema, registrando: *Nome Completo, Data de Nascimento, Função/Cargo, Nome de Usuário (Login)* e *Senha*.
+2.  **Funcionários (Colaboradores Cadastrados):**
+    * Autenticam-se utilizando os dados criados pelo Administrador.
+    * Possuem acesso exclusivo à aba **Pacientes** (a aba Equipe fica oculta por segurança).
+    * Responsáveis pelo registro do acolhimento e triagem, coletando: *Nome do Paciente, Data de Nascimento, Descrição Detalhada dos Sintomas* e *Classificação de Risco*.
+
+### 🟢🔴 Classificação de Risco Visual
+Ao registrar os sintomas, o profissional seleciona o nível de gravidade:
+* **Nível 1 – MODERADO:** O sistema renderiza o status na tabela automaticamente com a cor **Verde**, indicando prioridade padrão.
+* **Nível 2 – GRAVE / URGÊNCIA:** O sistema destaca o status na tabela automaticamente com a cor **Vermelha**, alertando para atendimento imediato.
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🛠️ Como Executar o Projeto
 
-A estrutura de arquivos foi mantida de forma coesa e limpa, facilitando a execução direta e garantindo que todas as dependências estejam explicitadas para o avaliador:
+### Pré-requisitos
+Certifique-se de ter instalado em sua máquina:
+* [Docker](https://www.docker.com/) e Docker Compose.
+* [Node.js](https://nodejs.org/) (versão 18 ou superior).
+
+---
+
+### 1. Inicializando o Backend (Docker)
+
+Abra o terminal na raiz principal do projeto (onde encontra-se o arquivo `docker-compose.yml`) e execute:
