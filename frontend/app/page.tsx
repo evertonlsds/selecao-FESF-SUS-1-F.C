@@ -10,11 +10,19 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
+interface Funcionario {
+  id: number;
+  nome: string;
+  cargo: string;
+  ativo: boolean;
+}
+
 export default function GestaoClinica() {
   const { token, login, logout } = useAuthStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [funcionarios, setFuncionarios] = useState([]);
+
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [erroLogin, setErroLogin] = useState("");
 
   useEffect(() => {
@@ -95,7 +103,7 @@ export default function GestaoClinica() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex">
+      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-slate-100">
           <Activity className="text-blue-600 h-6 w-6" />
           <span className="text-lg font-bold ml-2 text-slate-800">
@@ -163,7 +171,7 @@ export default function GestaoClinica() {
                     </td>
                   </tr>
                 ) : (
-                  funcionarios.map((f: any) => (
+                  funcionarios.map((f) => (
                     <tr
                       key={f.id}
                       className="hover:bg-slate-50/50 transition-colors"
